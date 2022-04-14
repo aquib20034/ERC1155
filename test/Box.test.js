@@ -3,8 +3,7 @@ const { ethers } = require("hardhat");
 
 describe('Box Contract', () => {
 	let Box, box,Jack, jack, box_addr,jack_addr, owner, addr1, addr2;
-	const name 					= "Box";
-	const symbol 				= "BOX";
+	// const TOKEN_ID 				= "1";
 	const version 				= "1.0.0";
 	const zeroAddr      		= "0x0000000000000000000000000000000000000000000000000000000000000000";
 	const MAX_SUPPLY 			= "7777";
@@ -18,8 +17,8 @@ describe('Box Contract', () => {
 
 	beforeEach(async () => {
 		Box = await ethers.getContractFactory('Box');
-		box = await upgrades.deployProxy(Box, [], {initializer: 'initialize'});
-
+		box = await Box.deploy();
+		await box.deployed();
 		// Jack = await ethers.getContractFactory('Jack');
 		// jack = await upgrades.deployProxy(Jack, [], {initializer: 'initialize'});
 
@@ -33,13 +32,9 @@ describe('Box Contract', () => {
 			expect(await box.owner()).to.equal(owner.address);
 		});
 
-		it('Should verify the name of contract', async () => {
-			expect((await box.name()).toString()).to.equal(name);
-		});
-
-		it('Should verify the symbol of contract', async () => {
-			expect((await box.symbol()).toString()).to.equal(symbol); 
-		});
+		// it('Should verify the TOKEN_ID of contract', async () => {
+		// 	expect((await box.TOKEN_ID()).toString()).to.equal(TOKEN_ID); 
+		// });
 
 		it('Should verify the PUBLIC_SALE_PRICE of contract', async () => {
 			expect((await box.PUBLIC_SALE_PRICE()).toString()).to.equal(PUBLIC_SALE_PRICE); 
@@ -86,12 +81,20 @@ describe('Box Contract', () => {
 			expect(await box.totalSupply()).to.equal('0');
 		});
 
-		it('Should verify the tokensMintedtBy of contract to be 0', async () => {
-			expect(await box.tokensMintedtBy(owner.address)).to.equal(0);
+		it('Should verify the balanceOf of contract to be 0', async () => {
+			expect(await box.ownerHolds(owner.address)).to.equal(0);
 		});
 
-		it('Should verify the tokensBurntBy of contract to be 0', async () => {
-			expect(await box.tokensBurntBy(owner.address)).to.equal(0);
+		it('Should verify the tokenWhitelistMintBy of owner to be 0', async () => {
+			expect(await box.tokenWhitelistMintBy(owner.address)).to.equal(0);
+		});
+
+		it('Should verify the tokenPublicMintBy of owner to be 0', async () => {
+			expect(await box.tokenPublicMintBy(owner.address)).to.equal(0);
+		});
+
+		it('Should verify the tokenBurnBy of contract to be 0', async () => {
+			expect(await box.tokenBurnBy(owner.address)).to.equal(0);
 		});
 
 	});
@@ -133,25 +136,27 @@ describe('Box Contract', () => {
 
 		it('should mint a token and verify the possession of the minted token', async () => {
 			await box.deployed();
+			let  ownerBalance = 0;
+			let inc = 0;
 
 			// Toggle the public sale
 			const togglePublicSaleTx = await box.togglePublicSale();
 	        await togglePublicSaleTx.wait();
 
+			// verify the owner balance to be 0
+			ownerBalance = await box.ownerHolds(owner.address);
+	        expect(ownerBalance).to.equal(0);
+
 			// mint the token 
-	        expect((await box.balanceOf(owner.address)).toString()).to.equal('0');
-	        await box.mint(1,{  value: PUBLIC_SALE_PRICE });
-	        expect((await box.balanceOf(owner.address)).toString()).to.equal('1');
+	        await box.mint(inc,{  value: PUBLIC_SALE_PRICE });
 
-			// verify the owner balance
-			const ownerBalance = await box.balanceOf(owner.address);
+			// verify the owner balance to be 1
+			ownerBalance = await box.ownerHolds(owner.address);
+	        expect(ownerBalance).to.equal(inc);
 
-			// verify the totalSupply
-			expect(await box.totalSupply()).to.equal(ownerBalance);
-
-			// verify ownerOf the token using tokenId
-			expect((await box.ownerOf(0)).toString()).to.equal(owner.address);
-	        
+			// verify the totalSupply to 1
+			expect(await box.totalSupply()).to.equal(inc);
+		        
 		});
 
 
@@ -163,66 +168,6 @@ describe('Box Contract', () => {
 	        expect(await box.getJackAddress()).to.equal(jack_address);
 		});
 
-		
-		
-		
-		// it('should burn a token and verify the possession of the burned token', async () => {
-		// 	await box.deployed();
-		// 	await jack.deployed();
-			
-
-		// 	box_addr 	= await upgrades.erc1967.getImplementationAddress(box.address);
-		// 	jack_addr 	= await upgrades.erc1967.getImplementationAddress(jack.address);
-
-
-		// 	const setJackAddressTx = await box.setJackAddress(jack_addr);
-	    //     await setJackAddressTx.wait();
-
-
-		// 	const setBoxAddressTx = await jack.setBoxAddress(box_addr);
-	    //     await setBoxAddressTx.wait();
-			
-
-		// 	const tokenMint 		= 10;
-		// 	const tokenBurn 		= 4;
-		// 	const amount 			= (tokenMint * PUBLIC_SALE_PRICE).toString();
-			
-			
-	    //     // Toggle the public sale
-		// 	const togglePublicSaleTx = await box.togglePublicSale();
-	    //     await togglePublicSaleTx.wait();
-
-		// 	// mint the token 
-	    //     expect((await box.tokensMintedtBy(owner.address))).to.equal(0);
-	    //     await box.mint(tokenMint, {  value: amount });
-
-		// 	// verify tokens minted 
-		// 	expect((await box.tokensMintedtBy(owner.address))).to.equal(tokenMint);
-
-		// 	// after minting ownerBalance and totalSupply Updated..
-		// 	const totalSupplyTx 	= await box.totalSupply();
-		// 	const ownerBalanceTx 	= await box.balanceOf(owner.address);
-
-
-		// 	// burn the token
-		// 	const burnTx = await box.burn(tokenBurn);
-		// 	await burnTx.wait();
-			
-		// 	// check owner token 
-		// 	expect((await box.balanceOf(owner.address))).to.equal(ownerBalanceTx - tokenBurn);
-
-		// 	// check owner burnt token
-		// 	expect((await box.tokensBurntBy(owner.address))).to.equal(tokenBurn);
-
-		// 	// check totalSupply must be deducted
-		// 	expect(await box.totalSupply()).to.equal(totalSupplyTx - tokenBurn);
-
-		// 	// check Jack totalSupply must be increased
-		// 	expect(await jack.totalSupply()).to.equal(tokenBurn);
-
-			
-		// });
-		
 	});
 
 });

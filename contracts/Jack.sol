@@ -3,37 +3,41 @@
 pragma solidity ^0.8.4;
 
 import "./Box.sol";
-import "erc721a-upgradeable/contracts/ERC721AUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "erc721a/contracts/ERC721A.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Jack is Initializable, ERC721AUpgradeable, OwnableUpgradeable{
-
+contract Jack is ERC721A, Ownable{
     uint256 public constant MAX_SUPPLY = 7777;
     bool public isRevealed;
     string private baseTokenUri;
     address private box_address;
 
     
-    function initialize() external initializer{
-        __ERC721A_init("Jack","JACK");
-        __Ownable_init();
+    constructor() ERC721A("Jack in the Box", "Jack"){
     }
 
+    event mintJack(string);
     modifier callerIsUser() {
         require(tx.origin == msg.sender, "Jack :: Cannot be called by a contract");
         _;
     }
-    event msgs(string);
+
+    function setBoxAddress(address _box_address) external onlyOwner{
+        box_address = _box_address;
+    }
 
     function mint(address addr,uint256 _quantity) external{
         Box box = Box(box_address);
-        require((box.tokensBurntBy(addr)) != 0, "Jack :: you did not burn any BOX token");
-        require((box.tokensBurntBy(addr)) >= (_quantity + _numberMinted(addr)), "Jack :: Beyond beyond burnt quantity");
+        require((box.tokenBurnBy(addr)) != 0, "Jack :: you did not burn any BOX token");
+        require((box.tokenBurnBy(addr)) >= (_quantity + balanceOf(addr)), "Jack :: Beyond beyond burnt quantity");
         require((totalSupply() + _quantity) <= MAX_SUPPLY, "Jack :: Beyond Max Supply");
+        emit mintJack("address");
+
         _safeMint(addr, _quantity);
     }
 
+   
+    
     function _baseURI() internal view virtual override returns (string memory) {
         return baseTokenUri;
     }
@@ -44,14 +48,6 @@ contract Jack is Initializable, ERC721AUpgradeable, OwnableUpgradeable{
    
     function toggleReveal() external onlyOwner{
         isRevealed = !isRevealed;
-    }
-
-    function setBoxAddress(address _box_address) external onlyOwner{
-        box_address = _box_address;
-    }
-
-    function getBoxAddress() external view returns (address){
-        return box_address;
     }
 
     function tokenIdsOfOwner(address owner) public view returns (uint256[] memory) {
@@ -77,9 +73,12 @@ contract Jack is Initializable, ERC721AUpgradeable, OwnableUpgradeable{
         }
     }
 
+    
+
     function tokensMintedtBy(address owner) external view returns (uint256) {
         return _numberMinted(owner);
     }
+
 
     function withdraw() external onlyOwner{
         payable(msg.sender).transfer(address(this).balance);
